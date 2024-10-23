@@ -8,7 +8,7 @@
 - Users should be able to view real-time and historical data on a web-based dashboard.
 
 ## Summary
-- Collect **system metrics** from **servers**
+- Collect **system metrics** and **logs** from **servers**
 - Time series data -> **high write-throughput**
     - TimeScaleDB
 
@@ -21,10 +21,27 @@
     - Query service (APIs for data retrieval)
     - Alerting service (subscribes to the storage service to alert on abnormal data reads)
 - Data layer:
-    - Relational database for storing metrics
+    - Relational database for storing logs and metrics
 
 ## Database
-- 
+- metrics
+    - server_id UUID, FK
+    - metric_id UUID, PK
+    - timestamp DATETIME
+    - cpu_usage DECIMAL
+    - memory_usage DECIMAL
+- logs
+    - server_id UUID, FK
+    - log_id UUID, PK
+    - timestamp DATETIME
+    - log_type ENUMERATE -- or just VARCHAR
+    - message -- if saving just the message
+        - location -- if saving log file in a blob storage
+- servers
+    - server_id UUID, PK
+    - name VARCHAR()
+    - description VARCHAR()
+    - and other attributes
 
 ## Services
 ### Stream processing service - just for write
@@ -41,6 +58,7 @@
                 read_iops: 120,
                 write_iops: 100
             }
+        }
     }
     ```
 - POST /logs
@@ -50,7 +68,7 @@
         server_id: "...",
         timestamp: "...",
         message: "...",
-        type: "..." // log, error
+        type: "..." // info, error, warning log
     }
     ```
 
@@ -60,3 +78,11 @@
 
 ### Alert service
 
+### Scaling
+- This system requires *very high WRITE-THROUGHPUT*, so we might need multiple database masters to handle the write request.
+    - Handling leaderless replication (n/2 approach)
+- Data partitioning:
+    - All partitions reside within the same database system and usually on the same server.
+    - Data is split based on specific criteria like date ranges, geographic regions, or alphabetical order.
+    - We can partition data based on serverId or timestamp
+        - If the data base becoming to large, we can start sharding
